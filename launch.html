@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>SMART App Launching...</title>
+    <script src="https://cdn.jsdelivr.net/npm/fhirclient/build/fhir-client.js"></script>
+</head>
+<body>
+    <div style="text-align: center; margin-top: 50px; font-family: sans-serif;">
+        <h2>正在安全啟動醫療應用程式...</h2>
+        <p>正在與 FHIR 伺服器建立授權連線，請稍候。</p>
+        <div class="loader"></div>
+    </div>
+
+    <script>
+        // SMART Launch 核心邏輯
+        FHIR.oauth2.authorize({
+            // 第二階段測試專用 Client ID
+            "clientId": "cc344727-6f90-496c-94fd-c7829aa9a51d", 
+            
+            // 第二階段測試專用 Client Secret
+            "secret": "79f04b56b33491716c0880af72cdef7d3f0629111421cedd18353651cd313d9e",
+            
+            // 授權範圍：包含病患資料讀取與啟動權限
+            "scope": "patient/*.read launch openid fhirUser online_access",
+            
+            // 授權成功後導向的頁面
+            "redirectUri": "dashboard.html",
+            
+            // 測試環境開啟以利除錯
+            "completeInTarget": true
+        });
+    </script>
+
+    <style>
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</body>
+</html>

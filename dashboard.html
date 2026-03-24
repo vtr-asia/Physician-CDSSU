@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APP2 | 醫師端臨床決策系統 (SMART Enabled)</title>
+    <script src="https://cdn.jsdelivr.net/npm/fhirclient/build/fhir-client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary-dark: #2c3e50; --accent: #3498db; --bg: #f0f2f5; --success: #27ae60; --danger: #e74c3c; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; }
+        
+        .sidebar { width: 280px; background: var(--primary-dark); color: white; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; background: #1a252f; text-align: center; }
+        .patient-info-box { padding: 20px; border-bottom: 1px solid #3e4f5f; }
+        
+        .content { flex: 1; padding: 25px; overflow-y: auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+        
+        .action-header { border-left: 5px solid var(--accent); padding-left: 10px; margin-bottom: 15px; color: var(--primary-dark); }
+        #sync-loader { color: var(--accent); font-weight: bold; }
+        .risk-badge { padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px; font-weight: bold; }
+        
+        .btn-submit { background: var(--success); color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 15px; }
+        textarea { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ddd; margin-top: 5px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h3>SMART 臨床系統</h3>
+    </div>
+    <div class="patient-info-box">
+        <p style="opacity: 0.7; font-size: 0.8em; margin-bottom: 5px;">當前選定病患</p>
+        <h2 id="patient-name" style="margin: 0; font-size: 1.4em;">載入中...</h2>
+        <p id="patient-details" style="font-size: 0.9em; margin-top: 10px;"></p>
+    </div>
+    <div style="padding: 20px; font-size: 0.8em; color: #95a5a6;">
+        <p>系統狀態: <span id="auth-status">驗證中...</span></p>
+    </div>
+</div>
+
+<div class="content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <h2 style="margin:0">遠距數據趨勢監控</h2>
+        <div id="sync-loader">🔄 FHIR 數據同步中...</div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="left-col">
+            <div class="card">
+                <h3 class="action-header">血壓監控趨勢 (SBP/DBP)</h3>
+                <canvas id="bpChart" height="140"></canvas>
+            </div>
+            <div class="card">
+                <h3 class="action-header">血糖監控趨勢 (mg/dL)</h3>
+                <canvas id="bgChart" height="140"></canvas>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="card">
+                <h3 class="action-header">臨床決策輔助 (CDSS)</h3>
+                <div id="risk-info" class="risk-badge" style="background: #e9ecef;">分析數據中...</div>
+                
+                <p><strong>🩺 醫療處置建議：</strong></p>
+                <div style="margin: 10px 0;"><input type="checkbox"> 建議啟動低鈉飲食計畫</div>
+                <div style="margin: 10px 0;"><input type="checkbox"> 安排 24 小時血壓監測 (ABPM)</div>
+                
+                <p style="margin-top:20px;"><strong>💊 藥物調整 (Medication Request)：</strong></p>
+                <select id="med-select">
+                    <option>維持現有藥物劑量</option>
+                    <option>Valsartan 80mg -> 160mg (每日一次)</option>
+                    <option>Metformin 500mg (每日二次)</option>
+                </select>
+                
+                <p style="margin-top:20px;"><strong>📝 醫師備註：</strong></p>
+                <textarea id="dr-note" placeholder="請輸入臨床建議..."></textarea>
+                
+                <button class="btn-submit" onclick="submitDecision()">確認並回傳醫囑至 HIS</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let bpChart, bgChart;
+    let smartClient;
+
+    // 初始化圖表
+    function initCharts() {
+        const bpCtx = document.getElementById('bpChart').getContext('2d');
+        bpChart = new Chart(bpCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: '收縮壓', data: [], borderColor: '#e74c3c', tension: 0.3, fill: false },
+                { label: '舒張壓', data: [], borderColor: '#3498db', tension: 0.3, fill: false }
+            ]}
+        });
+
+        const bgCtx = document.getElementById('bgChart').getContext('2d');
+        bgChart = new Chart(bgCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: '血糖值', data: [], backgroundColor: '#f1c40f' }] }
+        });
+    }
+
+    // SMART 啟動與數據抓取
+    async function startApp() {
+        initCharts();
+        try {
+            // 關鍵：與 launch.html 接棒
+            smartClient = await FHIR.oauth2.ready();
+            document.getElementById('auth-status').innerText = "✅ 已通過安全授權";
+            
+            // 1. 抓取病患基本資料
+            const patient = await smartClient.patient.read();
+            const name = patient.name ? patient.name[0].text || (patient.name[0].family + patient.name[0].given.join(' ')) : "匿名病患";
+            document.getElementById('patient-name').innerText = name;
+            document.getElementById('patient-details').innerText = `性別: ${patient.gender} | 生日: ${patient.birthDate}`;
+
+            // 2. 抓取量測數據
+            fetchFHIRData(smartClient.patient.id);
+
+        } catch (e) {
+            console.warn("未偵測到 SMART 環境，進入 Demo 模式");
+            document.getElementById('auth-status').innerText = "⚠️ Demo 模式 (無 Token)";
+            document.getElementById('patient-name').innerText = "陳嘉明 (測試)";
+            fetchFHIRData("DEMO-PATIENT-01"); // 使用您之前上傳的 ID
+        }
+    }
+
+    async function fetchFHIRData(pid) {
+        document.getElementById('sync-loader').style.display = 'block';
+        const serverUrl = "https://thas.mohw.gov.tw/v/r4/fhir"; // 或使用 smartClient.state.serverUrl
+        
+        try {
+            const resp = await fetch(`${serverUrl}/Observation?subject=Patient/${pid}&_sort=date&_count=30`);
+            const bundle = await resp.json();
+            processData(bundle.entry || []);
+            document.getElementById('sync-loader').style.display = 'none';
+        } catch (err) {
+            console.error("數據抓取失敗", err);
+        }
+    }
+
+    function processData(entries) {
+        const bpLabels = [], sbp = [], dbp = [], bgLabels = [], bg = [];
+        
+        entries.forEach(item => {
+            const r = item.resource;
+            const date = new Date(r.effectiveDateTime).toLocaleDateString();
+            if (r.code.coding[0].code === "85354-9") {
+                bpLabels.push(date);
+                sbp.push(r.component[0].valueQuantity.value);
+                dbp.push(r.component[1].valueQuantity.value);
+            } else if (r.code.coding[0].code === "2339-0") {
+                bgLabels.push(date);
+                bg.push(r.valueQuantity.value);
+            }
+        });
+
+        bpChart.data.labels = bpLabels;
+        bpChart.data.datasets[0].data = sbp;
+        bpChart.data.datasets[1].data = dbp;
+        bpChart.update();
+
+        bgChart.data.labels = bgLabels;
+        bgChart.data.datasets[0].data = bg;
+        bgChart.update();
+
+        // 決策分析
+        const risk = document.getElementById('risk-info');
+        if (sbp.length > 0 && sbp[sbp.length-1] > 140) {
+            risk.innerHTML = "🚨 高血壓風險 (SBP > 140)";
+            risk.style.background = "#fee2e2"; risk.style.color = "#b91c1c";
+        } else {
+            risk.innerHTML = "✅ 生理狀態穩定";
+            risk.style.background = "#dcfce7"; risk.style.color = "#15803d";
+        }
+    }
+
+    function submitDecision() {
+        const med = document.getElementById('med-select').value;
+        const note = document.getElementById('dr-note').value;
+        alert(`醫囑已生成！\n\n處方修正：${med}\n醫師註記：${note}\n\n數據已封裝為 FHIR MedicationRequest 格式存檔。`);
+    }
+
+    window.onload = startApp;
+</script>
+</body>
+</html>

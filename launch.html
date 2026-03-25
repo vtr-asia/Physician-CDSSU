@@ -2,47 +2,66 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SMART App Launching...</title>
+    <title>Physician-CDSSU - 啟動中...</title>
     <script src="https://cdn.jsdelivr.net/npm/fhirclient/build/fhir-client.js"></script>
-</head>
-<body>
-    <div style="text-align: center; margin-top: 50px; font-family: sans-serif;">
-        <h2>正在安全啟動醫療應用程式...</h2>
-        <p>正在與 FHIR 伺服器建立授權連線，請稍候。</p>
-        <div class="loader"></div>
-    </div>
-
-    <script>
-        // SMART Launch 核心邏輯
-        FHIR.oauth2.authorize({
-            // 第二階段測試專用 Client ID
-            "clientId": "cc344727-6f90-496c-94fd-c7829aa9a51d", 
-            
-            // 第二階段測試專用 Client Secret
-            "secret": "79f04b56b33491716c0880af72cdef7d3f0629111421cedd18353651cd313d9e",
-            
-            // 授權範圍：包含病患資料讀取與啟動權限
-            "scope": "patient/*.read launch openid fhirUser online_access",
-            
-            // 授權成功後導向的頁面
-            "redirectUri": "dashboard.html",
-            
-            // 測試環境開啟以利除錯
-            "completeInTarget": true
-        });
-    </script>
-
     <style>
+        body {
+            font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+            text-align: center;
+            margin-top: 80px;
+            background-color: #f8f9fa;
+        }
+        h2 { color: #2c3e50; }
         .loader {
             border: 8px solid #f3f3f3;
             border-top: 8px solid #3498db;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             animation: spin 1s linear infinite;
-            margin: auto;
+            margin: 30px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .info { color: #555; max-width: 600px; margin: 0 auto; line-height: 1.6; }
     </style>
+</head>
+<body>
+    <div>
+        <h2>Physician-CDSSU 醫師臨床決策支援系統</h2>
+        <p class="info">正在與測試 FHIR 伺服器建立安全連線...<br>
+           請稍候，我們將載入醫師儀表板與各項決策支援工具。</p>
+        <div class="loader"></div>
+        <p id="status" style="color: #777; font-size: 14px;">初始化 EHR Launch...</p>
+    </div>
+
+    <script>
+        // ==================== EHR Launch + 第二階段測試設定 ====================
+        FHIR.oauth2.authorize({
+            // 第二階段提供的 Client ID
+            "clientId": "cc344727-6f90-496c-94fd-c7829aa9a51d",
+
+            // EHR Launch 專用 Scopes（由 EHR 提供 launch 情境）
+            "scope": "launch patient/*.read openid fhirUser online_access",
+
+            // 授權成功後跳轉到核心儀表板
+            "redirectUri": "dashboard.html",
+
+            // 建議開啟 PKCE（即使是 confidential client，在前端測試時仍推薦）
+            "pkceMode": "ifSupported",
+
+            "completeInTarget": true,
+
+            onError: function(error) {
+                console.error("SMART EHR Launch 錯誤:", error);
+                document.getElementById("status").innerHTML = 
+                    `<span style="color:red;">EHR Launch 失敗，請檢查 Launch URL、Client ID、Scopes 或 Redirect URI。<br>
+                     錯誤詳情請按 F12 查看 Console。</span>`;
+            }
+        }).catch(function(err) {
+            console.error("授權流程例外:", err);
+            document.getElementById("status").innerHTML = 
+                `<span style="color:red;">無法完成 EHR Launch，請確認私人 Launcher 的 ISS 與 launch 參數正確。</span>`;
+        });
+    </script>
 </body>
 </html>

@@ -3,119 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🩺 居家生理量測真實傳輸門</title>
+  <title>🏠 居家生理量測真實傳輸門</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fhirclient@2.6.3/build/fhir-client.js"></script>
   <style>
     :root {
       --primary: #0a4f8c; --primary-light: #1a6fbc; --accent: #00b4d8;
-      --good: #1a7f4b; --good-light: #22a861; --warn: #c47a00;
-      --danger: #a81f1f; --bg: #f0f4f8; --card: #ffffff; 
-      --text: #1a2332; --border: #dde3ec; --radius: 14px;
+      --good: #1a7f4b; --warn: #f39c12; --danger: #e53e3e; 
+      --bg: #f0f4f8; --card: #ffffff; --text: #1a2332; --border: #dde3ec; --radius: 14px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
     
+    /* Header 樣式修改 */
     .topbar { 
       background: linear-gradient(135deg, var(--primary), var(--primary-light)); 
-      color: white; padding: 18px 32px; display: flex; justify-content: space-between; align-items: center;
+      color: white; padding: 18px 32px; display: flex; align-items: center; gap: 15px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
     }
-    .main { max-width: 1150px; margin: 0 auto; padding: 24px; }
+    .logo-icon { font-size: 28px; background: rgba(255,255,255,0.2); padding: 8px; border-radius: 12px; }
     
-    /* Layout */
+    .main { max-width: 1150px; margin: 0 auto; padding: 24px; }
     .dashboard-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; margin-top: 20px; }
     @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
-
+    
     .card { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .card-title { font-weight: 700; font-size: 16px; margin-bottom: 15px; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-
-    /* Patient Header */
-    .p-header { display: grid; grid-template-columns: auto 1fr 1fr; gap: 24px; align-items: center; }
+    .card-title { font-weight: 700; font-size: 16px; margin-bottom: 15px; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 8px; }
+    
+    .p-header { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
     .p-avatar { width: 60px; height: 60px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; }
     
-    /* Metrics */
     .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
     .metric-item { background: var(--bg); padding: 15px; border-radius: 12px; text-align: center; }
     .metric-label { font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500; }
     .metric-value { font-size: 22px; font-weight: 800; color: var(--primary); }
-    .metric-unit { font-size: 11px; color: #999; }
-
-    /* Lists */
-    .data-list { list-style: none; font-size: 14px; }
-    .data-list li { padding: 8px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; align-items: center; }
-    .tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: #edf2f7; color: #4a5568; }
-    .tag-statin { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; font-weight: bold; }
-
-    /* Decision Cards */
-    .decision { border-radius: var(--radius); padding: 25px; color: white; margin-bottom: 20px; }
-    .status-good { background: linear-gradient(135deg, #22a861, #1a7f4b); }
-    .status-danger { background: linear-gradient(135deg, #e53e3e, #c53030); }
-    .status-info { background: linear-gradient(135deg, #4299e1, #3182ce); }
     
-    .spinner { border: 4px solid rgba(0,0,0,0.1); border-left-color: var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+    .data-list { list-style: none; font-size: 14px; }
+    .data-list li { padding: 8px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
+    
+    .decision { border-radius: var(--radius); padding: 25px; color: white; margin-bottom: 20px; }
+    .status-good { background: #22a861; } 
+    .status-warn { background: #f39c12; } 
+    .status-danger { background: #e53e3e; } 
+    .status-info { background: #3182ce; }
+    
+    .spinner { border: 4px solid rgba(0,0,0,0.1); border-left-color: var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
   <div class="topbar">
+    <div class="logo-icon">🏠</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700; letter-spacing: 1px;">🩺 居家生理量測真實傳輸門</div>
-      <div style="font-size: 11px; opacity: 0.8;">Real-time Physiological Data Portal</div>
+      <div style="font-size: 22px; font-weight: 700; letter-spacing: 1px;">居家生理量測真實傳輸門</div>
+      <div style="font-size: 11px; opacity: 0.8; letter-spacing: 0.5px;">Home Physiological Data Transmission Portal</div>
     </div>
-    <div id="connectionStatus" class="tag" style="background: rgba(255,255,255,0.2); color: white;">系統連接中...</div>
   </div>
 
   <div class="main">
     <div class="card p-header">
-      <div class="p-avatar" id="pAvatar">👤</div>
+      <div class="p-avatar">👤</div>
       <div>
         <div id="pName" style="font-size: 22px; font-weight: 700; color: var(--primary);">載入中...</div>
-        <div id="pMeta" style="color: #666; font-size: 14px;">讀取病人基本資料中...</div>
-      </div>
-      <div>
-        <label style="font-size: 12px; font-weight: 700; color: #718096;">風險分層目標設定：</label>
-        <select id="riskSelect" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 8px; border: 2px solid var(--border); font-family: inherit;">
-          <option value="low">🟢 一般風險 (目標 LDL < 130)</option>
-          <option value="high">🟡 高風險：DM/CKD (目標 LDL < 100)</option>
-          <option value="veryhigh_mi">🔴 非常高風險：MI 病史 (目標 LDL < 70)</option>
-        </select>
+        <div id="pMeta" style="color: #666; font-size: 14px;">正在讀取病人雲端資料...</div>
       </div>
     </div>
 
     <div class="dashboard-grid">
       <div class="left-col">
         <div class="card">
-          <div class="card-title">📊 居家傳輸生理數據 (Vitals)</div>
+          <div class="card-title">📊 最新居家量測數據</div>
           <div class="metrics-row">
             <div class="metric-item">
-              <div class="metric-label">LDL-C</div>
-              <div class="metric-value" id="vLdl">—</div>
-              <div class="metric-unit">mg/dL</div>
+              <div class="metric-label">三酸甘油脂 (TG)</div>
+              <div class="metric-value" id="vTg">—</div>
+              <div style="font-size:10px">mg/dL</div>
             </div>
             <div class="metric-item">
-              <div class="metric-label">血糖 (Glucose)</div>
+              <div class="metric-label">血糖 (AC)</div>
               <div class="metric-value" id="vGlucose">—</div>
-              <div class="metric-unit">mg/dL</div>
+              <div style="font-size:10px">mg/dL</div>
             </div>
             <div class="metric-item">
               <div class="metric-label">血壓 (BP)</div>
-              <div class="metric-value" id="vBP" style="font-size: 18px;">—</div>
-              <div class="metric-unit">mmHg</div>
+              <div class="metric-value" id="vBP" style="font-size:18px">—</div>
+              <div style="font-size:10px">mmHg</div>
             </div>
             <div class="metric-item">
               <div class="metric-label">體重 (Weight)</div>
               <div class="metric-value" id="vWeight">—</div>
-              <div class="metric-unit">kg</div>
+              <div style="font-size:10px">kg (整數)</div>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div>
-              <div class="card-title">📋 診斷情形</div>
+              <div class="card-title">📋 臨床診斷情形</div>
               <ul class="data-list" id="diagList"></ul>
             </div>
             <div>
@@ -127,12 +113,9 @@
       </div>
 
       <div class="right-col">
-        <div id="decisionArea">
-          <div style="text-align:center; padding:30px;"><div class="spinner"></div>分析數據中...</div>
-        </div>
-
+        <div id="tgDecision"></div>
         <div class="decision status-info">
-          <div style="font-size: 18px; font-weight: 700;">🥗 個人化飲食建議</div>
+          <div style="font-size: 18px; font-weight: 700;">🥗 健康生活與飲食建議</div>
           <div id="dietBody" style="font-size: 14px; margin-top: 12px; line-height: 1.8;"></div>
         </div>
       </div>
@@ -140,112 +123,98 @@
   </div>
 
   <script>
-    const CONFIG = {
-      LOINC: { LDL: "13457-7", GLUCOSE: "2339-0", BP: "85354-9", WEIGHT: "29463-7" },
-      RISK_TARGETS: { low: 130, high: 100, veryhigh_mi: 70 },
-      STATINS: ["Atorvastatin", "Rosuvastatin", "Simvastatin", "Pravastatin", "Lovastatin", "Fluvastatin", "Pitavastatin", "Lipitor", "Crestor", "立普妥", "冠脂妥"]
+    // LOINC 代碼配置
+    const LOINC = { 
+      TG: "2571-8", 
+      GLUCOSE: "2339-0", 
+      BP: "85354-9", 
+      WEIGHT: "29463-7" 
     };
-
-    let _smart = null;
 
     async function init() {
       try {
-        _smart = await FHIR.oauth2.ready();
-        document.getElementById("connectionStatus").innerText = "已連線至醫學中心資料庫";
-        document.getElementById("connectionStatus").style.background = "#22a861";
-        
+        const _smart = await FHIR.oauth2.ready();
         const pid = _smart.patient.id;
-        loadAllData(pid);
+        
+        const [patient, obs, conditions, meds] = await Promise.all([
+          _smart.request(`Patient/${pid}`),
+          _smart.request(`Observation?patient=${pid}&code=${Object.values(LOINC).join(',')}&_sort=-date&_count=20`),
+          _smart.request(`Condition?patient=${pid}`),
+          _smart.request(`MedicationRequest?patient=${pid}&status=active`)
+        ]);
 
-        document.getElementById("riskSelect").addEventListener("change", () => loadAllData(pid));
-      } catch (e) {
-        document.getElementById("pName").innerText = "請由 Launcher 啟動";
-        console.error(e);
-      }
-    }
+        // 1. 顯示病人基本資料
+        const name = patient.name ? (patient.name[0].text || patient.name[0].family) : "姓名未登錄";
+        const gender = patient.gender === 'male' ? '男性' : '女性';
+        const age = patient.birthDate ? Math.floor((new Date() - new Date(patient.birthDate)) / 31557600000) : "--";
+        document.getElementById("pName").innerText = name;
+        document.getElementById("pMeta").innerText = `${gender} | ${age} 歲 | 病例 ID: ${patient.id}`;
 
-    async function loadAllData(pid) {
-      const riskKey = document.getElementById("riskSelect").value;
+        // 2. 處理生理數據
+        let vitals = { tg: null, glucose: null, bp: "—", weight: null };
+        if (obs.entry) {
+          obs.entry.forEach(e => {
+            const res = e.resource;
+            const code = res.code.coding[0].code;
+            if (code === LOINC.TG && !vitals.tg) vitals.tg = res.valueQuantity.value;
+            if (code === LOINC.GLUCOSE && !vitals.glucose) vitals.glucose = res.valueQuantity.value;
+            if (code === LOINC.WEIGHT && !vitals.weight) vitals.weight = Math.round(res.valueQuantity.value); // 體重取整數
+            if (code === LOINC.BP && vitals.bp === "—") {
+              const s = res.component.find(x => x.code.coding[0].code.includes("8480-6"));
+              const d = res.component.find(x => x.code.coding[0].code.includes("8462-4"));
+              if (s && d) vitals.bp = `${s.valueQuantity.value}/${d.valueQuantity.value}`;
+            }
+          });
+        }
+        document.getElementById("vTg").innerText = vitals.tg || "—";
+        document.getElementById("vGlucose").innerText = vitals.glucose || "—";
+        document.getElementById("vBP").innerText = vitals.bp;
+        document.getElementById("vWeight").innerText = vitals.weight || "—";
 
-      const [patient, obs, conditions, meds] = await Promise.all([
-        _smart.request(`Patient/${pid}`),
-        _smart.request(`Observation?patient=${pid}&code=${Object.values(CONFIG.LOINC).join(',')}&_sort=-date&_count=20`),
-        _smart.request(`Condition?patient=${pid}`),
-        _smart.request(`MedicationRequest?patient=${pid}&status=active`)
-      ]);
+        // 3. 診斷與用藥列表
+        const dList = document.getElementById("diagList");
+        dList.innerHTML = conditions.entry ? "" : "<li>查無診斷紀錄</li>";
+        conditions.entry?.forEach(e => dList.innerHTML += `<li>${e.resource.code.text || e.resource.code.coding[0].display}</li>`);
 
-      // 1. 基本資料 (姓名、性別、年齡)
-      const name = patient.name ? (patient.name[0].text || patient.name[0].family) : "姓名未登錄";
-      const gender = patient.gender === 'male' ? '男性' : '女性';
-      const age = patient.birthDate ? Math.floor((new Date() - new Date(patient.birthDate)) / 31557600000) : "--";
-      document.getElementById("pName").innerText = name;
-      document.getElementById("pMeta").innerText = `${gender} | ${age} 歲 | 病歷號: ${patient.id}`;
-      document.getElementById("pAvatar").innerText = patient.gender === 'male' ? '👨‍💼' : '👩‍💼';
+        const mList = document.getElementById("medList");
+        mList.innerHTML = meds.entry ? "" : "<li>目前無服用藥物</li>";
+        meds.entry?.forEach(e => mList.innerHTML += `<li>${e.resource.medicationCodeableConcept?.text || "未知藥名"}</li>`);
 
-      // 2. 生理指標
-      const vitals = { ldl: null, glucose: null, bp: "—", weight: null, sys: 0 };
-      if (obs.entry) {
-        obs.entry.forEach(e => {
-          const res = e.resource;
-          const code = res.code.coding[0].code;
-          if (code === CONFIG.LOINC.LDL && !vitals.ldl) vitals.ldl = res.valueQuantity.value;
-          if (code === CONFIG.LOINC.GLUCOSE && !vitals.glucose) vitals.glucose = res.valueQuantity.value;
-          if (code === CONFIG.LOINC.WEIGHT && !vitals.weight) vitals.weight = res.valueQuantity.value;
-          if (code === CONFIG.LOINC.BP && vitals.bp === "—") {
-            const s = res.component.find(x => x.code.coding[0].code.includes("8480-6"));
-            const d = res.component.find(x => x.code.coding[0].code.includes("8462-4"));
-            if (s && d) { vitals.bp = `${s.valueQuantity.value}/${d.valueQuantity.value}`; vitals.sys = s.valueQuantity.value; }
+        // 4. TG 風險判斷邏輯
+        const tgArea = document.getElementById("tgDecision");
+        if (vitals.tg) {
+          let statusClass = "status-good", riskLabel = "正常", advice = "三酸甘油脂數值理想，請維持健康作息。";
+          if (vitals.tg >= 500) {
+            statusClass = "status-danger"; riskLabel = "極高 (危險)"; advice = "數值嚴重超標，恐引發急性胰臟炎，請務必諮詢醫師治療。";
+          } else if (vitals.tg >= 200) {
+            statusClass = "status-danger"; riskLabel = "偏高"; advice = "建議嚴格控制油脂攝取，增加運動，並由醫師評估是否給藥。";
+          } else if (vitals.tg >= 150) {
+            statusClass = "status-warn"; riskLabel = "警戒 (臨界高)"; advice = "數值略高，應開始減少糖分、酒精與精緻澱粉攝取。";
           }
-        });
+          tgArea.innerHTML = `
+            <div class="decision ${statusClass}">
+              <div style="font-size: 20px; font-weight: 800;">TG 評估：${riskLabel}</div>
+              <div style="font-size: 14px; margin-top: 5px; opacity: 0.9;">最新量測值: ${vitals.tg} mg/dL</div>
+              <div style="margin-top: 10px; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">${advice}</div>
+            </div>`;
+        } else {
+          tgArea.innerHTML = `<div class="decision status-info">等待 TG 數據傳輸...</div>`;
+        }
+
+        // 5. 生活建議與飲水 (單位 L)
+        let waterL = vitals.weight ? (vitals.weight * 35 / 1000).toFixed(1) : "2.0";
+        let dietHtml = `<ul style="list-style-type: none;">`;
+        dietHtml += `<li>💧 <b>每日建議飲水量：</b> 需達到 <b>${waterL} L</b> (公升)。</li>`;
+        if (vitals.tg > 150) dietHtml += `<li>🍺 <b>飲食提醒：</b> 酒精、甜食、含糖飲料是升高 TG 的主因，應嚴格限制。</li>`;
+        dietHtml += `<li>🐟 <b>油脂建議：</b> 建議補充富含 Omega-3 的深海魚類，幫助改善脂質代謝。</li>`;
+        dietHtml += `<li>🚶 <b>運動建議：</b> 每週 5 次 30 分鐘有氧運動，可顯著降低三酸甘油脂。</li>`;
+        dietHtml += `</ul>`;
+        document.getElementById("dietBody").innerHTML = dietHtml;
+
+      } catch (e) {
+        console.error("FHIR Error:", e);
       }
-      document.getElementById("vLdl").innerText = vitals.ldl || "—";
-      document.getElementById("vGlucose").innerText = vitals.glucose || "—";
-      document.getElementById("vBP").innerText = vitals.bp;
-      document.getElementById("vWeight").innerText = vitals.weight || "—";
-
-      // 3. 診斷
-      const diagList = document.getElementById("diagList");
-      diagList.innerHTML = conditions.entry ? "" : "<li>無相關診斷</li>";
-      conditions.entry?.forEach(e => {
-        diagList.innerHTML += `<li>${e.resource.code.text || e.resource.code.coding[0].display} <span class="tag">Active</span></li>`;
-      });
-
-      // 4. 用藥與 Statin 檢查
-      const medList = document.getElementById("medList");
-      let hasStatin = false;
-      medList.innerHTML = meds.entry ? "" : "<li>目前無處方藥物</li>";
-      meds.entry?.forEach(e => {
-        const mName = e.resource.medicationCodeableConcept?.text || "未知藥物";
-        const isStatin = CONFIG.STATINS.some(s => mName.toLowerCase().includes(s.toLowerCase()));
-        if (isStatin) hasStatin = true;
-        medList.innerHTML += `<li>${mName} ${isStatin ? '<span class="tag tag-statin">Statin</span>' : ''}</li>`;
-      });
-
-      // 5. CDS 建議區
-      const target = CONFIG.RISK_TARGETS[riskKey];
-      const decisionArea = document.getElementById("decisionArea");
-      const isOk = vitals.ldl && vitals.ldl < target;
-      decisionArea.innerHTML = `
-        <div class="decision ${isOk ? 'status-good' : 'status-danger'}">
-          <div style="font-size: 20px; font-weight: 800;">${isOk ? '✅ 指標達標' : '🚨 尚未達標'}</div>
-          <div style="font-size: 14px; margin-top: 5px; opacity: 0.9;">
-            當前 LDL: ${vitals.ldl || '無數據'} (目標 < ${target})
-          </div>
-          <div style="margin-top: 10px; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
-            ${hasStatin ? '目前已有 Statin 藥物。' : '尚未偵測到 Statin 類藥物。'} ${isOk ? '請繼續維持。' : '建議與醫師討論加強劑量。'}
-          </div>
-        </div>`;
-
-      // 6. 飲食建議
-      let advice = `<ul style="list-style-type: none;">`;
-      advice += `<li>💧 <b>基礎：</b> 每日飲水量建議達 ${vitals.weight ? vitals.weight * 30 : 2000} cc。</li>`;
-      if (vitals.ldl > target) advice += `<li>🥑 <b>低脂：</b> 避開油炸與內臟類，選用植物油。</li>`;
-      if (vitals.glucose > 100) advice += `<li>🍎 <b>控糖：</b> 減少精緻澱粉，每餐蔬菜量需多於澱粉。</li>`;
-      if (vitals.sys > 130) advice += `<li>🧂 <b>限鹽：</b> 減少加工食品與醬料攝取。</li>`;
-      advice += `</ul>`;
-      document.getElementById("dietBody").innerHTML = advice;
     }
-
     init();
   </script>
 </body>

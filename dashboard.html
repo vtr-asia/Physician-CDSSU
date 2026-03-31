@@ -147,8 +147,9 @@
         const name = patient.name ? (patient.name[0].text || patient.name[0].family) : "姓名未登錄";
         const gender = patient.gender === 'male' ? '男性' : '女性';
         const age = patient.birthDate ? Math.floor((new Date() - new Date(patient.birthDate)) / 31557600000) : "--";
+        const birthDate = patient.birthDate || "未登錄";
         document.getElementById("pName").innerText = name;
-        document.getElementById("pMeta").innerText = `${gender} | ${age} 歲 | 病例 ID: ${patient.id}`;
+        document.getElementById("pMeta").innerText = `${gender} | ${age} 歲 | 出生日期: ${birthDate} | 病例 ID: ${patient.id}`;
 
         // 2. 處理生理數據
         let vitals = { tg: null, glucose: null, bp: "—", weight: null };

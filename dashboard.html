@@ -1,222 +1,763 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🏠 居家生理量測真實傳輸門</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/fhirclient@2.6.3/build/fhir-client.js"></script>
-  <style>
-    :root {
-      --primary: #0a4f8c; --primary-light: #1a6fbc; --accent: #00b4d8;
-      --good: #1a7f4b; --warn: #f39c12; --danger: #e53e3e; 
-      --bg: #f0f4f8; --card: #ffffff; --text: #1a2332; --border: #dde3ec; --radius: 14px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-    
-    /* Header 樣式修改 */
-    .topbar { 
-      background: linear-gradient(135deg, var(--primary), var(--primary-light)); 
-      color: white; padding: 18px 32px; display: flex; align-items: center; gap: 15px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-    }
-    .logo-icon { font-size: 28px; background: rgba(255,255,255,0.2); padding: 8px; border-radius: 12px; }
-    
-    .main { max-width: 1150px; margin: 0 auto; padding: 24px; }
-    .dashboard-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; margin-top: 20px; }
-    @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
-    
-    .card { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .card-title { font-weight: 700; font-size: 16px; margin-bottom: 15px; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 8px; }
-    
-    .p-header { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
-    .p-avatar { width: 60px; height: 60px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; }
-    
-    .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
-    .metric-item { background: var(--bg); padding: 15px; border-radius: 12px; text-align: center; }
-    .metric-label { font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500; }
-    .metric-value { font-size: 22px; font-weight: 800; color: var(--primary); }
-    
-    .data-list { list-style: none; font-size: 14px; }
-    .data-list li { padding: 8px 0; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; }
-    
-    .decision { border-radius: var(--radius); padding: 25px; color: white; margin-bottom: 20px; }
-    .status-good { background: #22a861; } 
-    .status-warn { background: #f39c12; } 
-    .status-danger { background: #e53e3e; } 
-    .status-info { background: #3182ce; }
-    
-    .spinner { border: 4px solid rgba(0,0,0,0.1); border-left-color: var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: auto; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>居家生理量測臨床決策儀表板</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fhirclient@2.6.3/build/fhir-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary:       #0d3b6e;
+  --primary-light: #1a5ca8;
+  --primary-dim:   #e8f0fb;
+  --accent:        #00c2cb;
+  --good:          #0b7a4f;
+  --good-bg:       #e6f6ee;
+  --warn:          #c27c00;
+  --warn-bg:       #fef8e6;
+  --danger:        #c0392b;
+  --danger-bg:     #fdecea;
+  --info:          #1565c0;
+  --info-bg:       #e3eeff;
+  --bg:            #f2f5fa;
+  --card:          #ffffff;
+  --text:          #1a2332;
+  --text-muted:    #6b7a8d;
+  --border:        #dde4ef;
+  --radius:        16px;
+  --shadow:        0 2px 16px rgba(13,59,110,0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Topbar ── */
+.topbar {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: #fff;
+  padding: 0 32px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-icon {
+  font-size: 26px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 12px;
+  width: 46px; height: 46px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 19px; font-weight: 700; letter-spacing: 0.5px; }
+.topbar-sub   { font-size: 11px; opacity: 0.75; letter-spacing: 0.4px; margin-top: 1px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.topbar-time  { font-family: 'DM Mono', monospace; font-size: 13px; opacity: 0.85; }
+.badge-fhir {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ── Layout ── */
+.main { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+.patient-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.avatar {
+  width: 56px; height: 56px;
+  background: var(--primary-dim);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+  border: 2px solid var(--primary-light);
+}
+.patient-name   { font-size: 22px; font-weight: 700; color: var(--primary); }
+.patient-meta   { color: var(--text-muted); font-size: 13px; margin-top: 3px; }
+.patient-right  { margin-left: auto; text-align: right; }
+.last-updated   { font-size: 11px; color: var(--text-muted); }
+.status-dot     { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 5px; animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+/* ── Grid ── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 960px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+/* ── Card ── */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+.card:last-child { margin-bottom: 0; }
+.card-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  margin-bottom: 16px;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Metrics ── */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 600px) { .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+
+.metric-item {
+  background: var(--bg);
+  padding: 14px 12px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid var(--border);
+  transition: transform .15s, box-shadow .15s;
+}
+.metric-item:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(13,59,110,0.1); }
+.metric-label { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; }
+.metric-value { font-size: 24px; font-weight: 800; color: var(--primary); font-family: 'DM Mono', monospace; line-height: 1; }
+.metric-unit  { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+.metric-item.warn  .metric-value { color: var(--warn); }
+.metric-item.danger .metric-value { color: var(--danger); }
+.metric-item.good  .metric-value { color: var(--good); }
+
+/* ── Data lists ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+
+.data-list { list-style: none; font-size: 13px; }
+.data-list li {
+  padding: 7px 0;
+  border-bottom: 1px dashed #eef0f4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+.data-list li:last-child { border-bottom: none; }
+.empty-hint { color: var(--text-muted); font-style: italic; font-size: 12px; padding: 8px 0; }
+
+/* ── CDSS Decision Block ── */
+.decision {
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.decision::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  border-radius: 0 16px 0 80px;
+  opacity: 0.12;
+  background: #fff;
+}
+.decision-level { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85; margin-bottom: 4px; }
+.decision-title { font-size: 19px; font-weight: 800; }
+.decision-value { font-size: 13px; opacity: 0.88; margin-top: 2px; font-family: 'DM Mono', monospace; }
+.decision-body  { margin-top: 12px; font-size: 13.5px; line-height: 1.75; border-top: 1px solid rgba(255,255,255,0.25); padding-top: 10px; }
+
+.decision.good   { background: linear-gradient(135deg, #0b7a4f, #0fa060); color: #fff; }
+.decision.warn   { background: linear-gradient(135deg, #c27c00, #e09710); color: #fff; }
+.decision.danger { background: linear-gradient(135deg, #c0392b, #e04438); color: #fff; }
+.decision.info   { background: linear-gradient(135deg, #1565c0, #1e88e5); color: #fff; }
+
+/* ── Alert tags ── */
+.alert-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.alert-tag.good   { background: var(--good-bg);   color: var(--good);   }
+.alert-tag.warn   { background: var(--warn-bg);   color: var(--warn);   }
+.alert-tag.danger { background: var(--danger-bg); color: var(--danger); }
+.alert-tag.info   { background: var(--info-bg);   color: var(--info);   }
+
+/* ── Diet list ── */
+.diet-list { list-style: none; }
+.diet-list li {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.diet-list li:last-child { border-bottom: none; }
+.diet-icon { font-size: 16px; flex-shrink: 0; }
+
+/* ── Loading ── */
+#loadingOverlay {
+  position: fixed; inset: 0;
+  background: rgba(242,245,250,0.92);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  z-index: 999;
+  transition: opacity .4s;
+}
+#loadingOverlay.hidden { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 44px; height: 44px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary-light);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--primary); font-weight: 600; font-size: 15px; }
+
+/* ── Error state ── */
+.error-card {
+  background: var(--danger-bg);
+  border: 1px solid #f5c6c2;
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  color: var(--danger);
+}
+.error-card .err-icon { font-size: 36px; margin-bottom: 10px; }
+.error-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.error-card p  { font-size: 13px; opacity: 0.85; line-height: 1.6; }
+.retry-btn {
+  margin-top: 14px;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.retry-btn:hover { background: #a93226; }
+
+/* ── Skeleton loader ── */
+.skeleton {
+  background: linear-gradient(90deg, #e8ecf2 25%, #d4dae5 50%, #e8ecf2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── Chart ── */
+.chart-wrap { position: relative; height: 160px; margin-top: 8px; }
+</style>
 </head>
 <body>
 
-  <div class="topbar">
-    <div class="logo-icon">🏠</div>
+<!-- Loading overlay -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">正在連線 FHIR 伺服器，讀取病患資料…</div>
+</div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-icon">🏠</div>
+  <div>
+    <div class="topbar-title">居家生理量測臨床決策儀表板</div>
+    <div class="topbar-sub">SMART on FHIR · Clinical Decision Support</div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-time" id="clockDisplay"></span>
+    <span class="badge-fhir">FHIR R4</span>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Patient Header -->
+  <div class="patient-card" id="patientCard">
+    <div class="avatar">👤</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700; letter-spacing: 1px;">居家生理量測真實傳輸門</div>
-      <div style="font-size: 11px; opacity: 0.8; letter-spacing: 0.5px;">Home Physiological Data Transmission Portal</div>
+      <div class="patient-name" id="pName">
+        <span class="skeleton" style="display:inline-block;width:120px;height:22px;"></span>
+      </div>
+      <div class="patient-meta" id="pMeta">
+        <span class="skeleton" style="display:inline-block;width:260px;height:14px;margin-top:4px;"></span>
+      </div>
+    </div>
+    <div class="patient-right">
+      <span class="status-dot"></span>
+      <span class="last-updated" id="lastUpdated">資料讀取中…</span>
     </div>
   </div>
 
-  <div class="main">
-    <div class="card p-header">
-      <div class="p-avatar">👤</div>
-      <div>
-        <div id="pName" style="font-size: 22px; font-weight: 700; color: var(--primary);">載入中...</div>
-        <div id="pMeta" style="color: #666; font-size: 14px;">正在讀取病人雲端資料...</div>
-      </div>
-    </div>
+  <div class="dashboard-grid">
 
-    <div class="dashboard-grid">
-      <div class="left-col">
-        <div class="card">
-          <div class="card-title">📊 最新居家量測數據</div>
-          <div class="metrics-row">
-            <div class="metric-item">
-              <div class="metric-label">三酸甘油脂 (TG)</div>
-              <div class="metric-value" id="vTg">—</div>
-              <div style="font-size:10px">mg/dL</div>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">血糖 (AC)</div>
-              <div class="metric-value" id="vGlucose">—</div>
-              <div style="font-size:10px">mg/dL</div>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">血壓 (BP)</div>
-              <div class="metric-value" id="vBP" style="font-size:18px">—</div>
-              <div style="font-size:10px">mmHg</div>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">體重 (Weight)</div>
-              <div class="metric-value" id="vWeight">—</div>
-              <div style="font-size:10px">kg (整數)</div>
-            </div>
+    <!-- Left column -->
+    <div>
+
+      <!-- Vitals -->
+      <div class="card">
+        <div class="card-title">📊 最新居家量測數據</div>
+        <div class="metrics-row" id="metricsRow">
+          <div class="metric-item">
+            <div class="metric-label">三酸甘油脂 (TG)</div>
+            <div class="metric-value" id="vTg">—</div>
+            <div class="metric-unit">mg/dL</div>
           </div>
-        </div>
-
-        <div class="card">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div>
-              <div class="card-title">📋 臨床診斷情形</div>
-              <ul class="data-list" id="diagList"></ul>
-            </div>
-            <div>
-              <div class="card-title">💊 目前用藥狀況</div>
-              <ul class="data-list" id="medList"></ul>
-            </div>
+          <div class="metric-item">
+            <div class="metric-label">空腹血糖 (AC)</div>
+            <div class="metric-value" id="vGlucose">—</div>
+            <div class="metric-unit">mg/dL</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">血壓 (BP)</div>
+            <div class="metric-value" id="vBP" style="font-size:18px;">—</div>
+            <div class="metric-unit">mmHg</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">體重 (Weight)</div>
+            <div class="metric-value" id="vWeight">—</div>
+            <div class="metric-unit">kg</div>
           </div>
         </div>
       </div>
 
-      <div class="right-col">
-        <div id="tgDecision"></div>
-        <div class="decision status-info">
-          <div style="font-size: 18px; font-weight: 700;">🥗 健康生活與飲食建議</div>
-          <div id="dietBody" style="font-size: 14px; margin-top: 12px; line-height: 1.8;"></div>
+      <!-- Diagnosis & Medications -->
+      <div class="card">
+        <div class="two-col">
+          <div>
+            <div class="card-title">📋 臨床診斷</div>
+            <ul class="data-list" id="diagList">
+              <li><span class="empty-hint">載入中…</span></li>
+            </ul>
+          </div>
+          <div>
+            <div class="card-title">💊 目前用藥</div>
+            <ul class="data-list" id="medList">
+              <li><span class="empty-hint">載入中…</span></li>
+            </ul>
+          </div>
         </div>
       </div>
+
+      <!-- Trend chart (BP) -->
+      <div class="card" id="chartCard" style="display:none;">
+        <div class="card-title">📈 血壓趨勢（近期記錄）</div>
+        <div class="chart-wrap">
+          <canvas id="bpChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column -->
+    <div>
+      <!-- CDSS decisions injected here -->
+      <div id="tgDecision"></div>
+      <div id="bpDecision"></div>
+      <div id="glucoseDecision"></div>
+
+      <!-- Diet & Lifestyle -->
+      <div class="decision info">
+        <div class="decision-level">生活建議</div>
+        <div class="decision-title">🥗 飲食與運動指引</div>
+        <div class="decision-body">
+          <ul class="diet-list" id="dietList">
+            <li><span class="diet-icon">⏳</span> 建議內容將依數據自動產生…</li>
+          </ul>
+        </div>
+      </div>
+
     </div>
   </div>
+</div>
 
-  <script>
-    // LOINC 代碼配置
-    const LOINC = { 
-      TG: "2571-8", 
-      GLUCOSE: "2339-0", 
-      BP: "85354-9", 
-      WEIGHT: "29463-7" 
-    };
+<script>
+/* ── 時鐘 ── */
+(function clock() {
+  const el = document.getElementById('clockDisplay');
+  function tick() {
+    el.textContent = new Date().toLocaleString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  tick(); setInterval(tick, 1000);
+})();
 
-    async function init() {
-      try {
-        const _smart = await FHIR.oauth2.ready();
-        const pid = _smart.patient.id;
-        
-        const [patient, obs, conditions, meds] = await Promise.all([
-          _smart.request(`Patient/${pid}`),
-          _smart.request(`Observation?patient=${pid}&code=${Object.values(LOINC).join(',')}&_sort=-date&_count=20`),
-          _smart.request(`Condition?patient=${pid}`),
-          _smart.request(`MedicationRequest?patient=${pid}&status=active`)
-        ]);
+/* ── LOINC 代碼 ── */
+const LOINC = {
+  TG:      '2571-8',
+  GLUCOSE: '2339-0',
+  BP:      '85354-9',
+  WEIGHT:  '29463-7',
+  SBP:     '8480-6',
+  DBP:     '8462-4',
+};
 
-        // 1. 顯示病人基本資料
-        const name = patient.name ? (patient.name[0].text || patient.name[0].family) : "姓名未登錄";
-        const gender = patient.gender === 'male' ? '男性' : '女性';
-        const age = patient.birthDate ? Math.floor((new Date() - new Date(patient.birthDate)) / 31557600000) : "--";
-        const birthDate = patient.birthDate || "未登錄";
-        document.getElementById("pName").innerText = name;
-        document.getElementById("pMeta").innerText = `${gender} | ${age} 歲 | 出生日期: ${birthDate} | 病例 ID: ${patient.id}`;
+/* ── 隱藏 Loading ── */
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('hidden');
+  setTimeout(() => overlay.remove(), 500);
+}
 
-        // 2. 處理生理數據
-        let vitals = { tg: null, glucose: null, bp: "—", weight: null };
-        if (obs.entry) {
-          obs.entry.forEach(e => {
-            const res = e.resource;
-            const code = res.code.coding[0].code;
-            if (code === LOINC.TG && !vitals.tg) vitals.tg = res.valueQuantity.value;
-            if (code === LOINC.GLUCOSE && !vitals.glucose) vitals.glucose = res.valueQuantity.value;
-            if (code === LOINC.WEIGHT && !vitals.weight) vitals.weight = Math.round(res.valueQuantity.value); // 體重取整數
-            if (code === LOINC.BP && vitals.bp === "—") {
-              const s = res.component.find(x => x.code.coding[0].code.includes("8480-6"));
-              const d = res.component.find(x => x.code.coding[0].code.includes("8462-4"));
-              if (s && d) vitals.bp = `${s.valueQuantity.value}/${d.valueQuantity.value}`;
-            }
-          });
-        }
-        document.getElementById("vTg").innerText = vitals.tg || "—";
-        document.getElementById("vGlucose").innerText = vitals.glucose || "—";
-        document.getElementById("vBP").innerText = vitals.bp;
-        document.getElementById("vWeight").innerText = vitals.weight || "—";
+/* ── 顯示錯誤 ── */
+function showError(msg) {
+  hideLoading();
+  document.querySelector('.main').innerHTML = `
+    <div class="error-card">
+      <div class="err-icon">⚠️</div>
+      <h3>無法讀取 FHIR 資料</h3>
+      <p>${msg}<br>請確認授權流程是否正常，或聯絡系統管理員。</p>
+      <button class="retry-btn" onclick="location.reload()">🔄 重新載入</button>
+    </div>`;
+}
 
-        // 3. 診斷與用藥列表
-        const dList = document.getElementById("diagList");
-        dList.innerHTML = conditions.entry ? "" : "<li>查無診斷紀錄</li>";
-        conditions.entry?.forEach(e => dList.innerHTML += `<li>${e.resource.code.text || e.resource.code.coding[0].display}</li>`);
+/* ── CDSS：TG ── */
+function renderTgDecision(tg) {
+  const el = document.getElementById('tgDecision');
+  if (tg == null) { el.innerHTML = ''; return; }
 
-        const mList = document.getElementById("medList");
-        mList.innerHTML = meds.entry ? "" : "<li>目前無服用藥物</li>";
-        meds.entry?.forEach(e => mList.innerHTML += `<li>${e.resource.medicationCodeableConcept?.text || "未知藥名"}</li>`);
+  let level, cls, advice;
+  if (tg >= 500) {
+    level = '極高危險'; cls = 'danger';
+    advice = '數值嚴重超標（≥500 mg/dL），急性胰臟炎風險極高。請立即安排門診處置，由醫師評估藥物治療（如 Fibrate 類）。';
+  } else if (tg >= 200) {
+    level = '偏高'; cls = 'danger';
+    advice = '建議嚴格控制油脂與糖分攝取，增加有氧運動，並評估是否需要降脂藥物。';
+  } else if (tg >= 150) {
+    level = '臨界高值'; cls = 'warn';
+    advice = '數值略超標準。應減少精緻澱粉、甜飲與酒精，搭配規律運動以改善代謝。';
+  } else {
+    level = '正常'; cls = 'good';
+    advice = '三酸甘油脂數值理想，請維持目前的健康飲食與生活習慣。';
+  }
 
-        // 4. TG 風險判斷邏輯
-        const tgArea = document.getElementById("tgDecision");
-        if (vitals.tg) {
-          let statusClass = "status-good", riskLabel = "正常", advice = "三酸甘油脂數值理想，請維持健康作息。";
-          if (vitals.tg >= 500) {
-            statusClass = "status-danger"; riskLabel = "極高 (危險)"; advice = "數值嚴重超標，恐引發急性胰臟炎，請務必諮詢醫師治療。";
-          } else if (vitals.tg >= 200) {
-            statusClass = "status-danger"; riskLabel = "偏高"; advice = "建議嚴格控制油脂攝取，增加運動，並由醫師評估是否給藥。";
-          } else if (vitals.tg >= 150) {
-            statusClass = "status-warn"; riskLabel = "警戒 (臨界高)"; advice = "數值略高，應開始減少糖分、酒精與精緻澱粉攝取。";
+  el.innerHTML = `
+    <div class="decision ${cls}" style="margin-bottom:16px;">
+      <div class="decision-level">TG 評估</div>
+      <div class="decision-title">${level}</div>
+      <div class="decision-value">最新值：${tg} mg/dL（正常 &lt; 150）</div>
+      <div class="decision-body">${advice}</div>
+    </div>`;
+}
+
+/* ── CDSS：BP ── */
+function renderBpDecision(sbp, dbp) {
+  const el = document.getElementById('bpDecision');
+  if (sbp == null || dbp == null) { el.innerHTML = ''; return; }
+
+  let level, cls, advice;
+  if (sbp >= 180 || dbp >= 120) {
+    level = '高血壓危象'; cls = 'danger';
+    advice = '收縮壓或舒張壓達危急值，請立即評估是否有靶器官損傷，考慮住院或急診處置。';
+  } else if (sbp >= 140 || dbp >= 90) {
+    level = '第二期高血壓'; cls = 'danger';
+    advice = '建議調整降壓藥物，同時加強低鹽飲食（<5g/天）、戒菸戒酒與規律運動。';
+  } else if (sbp >= 130 || dbp >= 80) {
+    level = '第一期高血壓'; cls = 'warn';
+    advice = '收縮壓偏高，請追蹤居家血壓紀錄，考慮生活介入；如有合併症則評估藥物。';
+  } else {
+    level = '血壓正常'; cls = 'good';
+    advice = '血壓在理想範圍內，繼續維持良好的作息與低鈉飲食。';
+  }
+
+  el.innerHTML = `
+    <div class="decision ${cls}" style="margin-bottom:16px;">
+      <div class="decision-level">血壓評估</div>
+      <div class="decision-title">${level}</div>
+      <div class="decision-value">最新值：${sbp}/${dbp} mmHg</div>
+      <div class="decision-body">${advice}</div>
+    </div>`;
+}
+
+/* ── CDSS：血糖 ── */
+function renderGlucoseDecision(glucose) {
+  const el = document.getElementById('glucoseDecision');
+  if (glucose == null) { el.innerHTML = ''; return; }
+
+  let level, cls, advice;
+  if (glucose >= 200) {
+    level = '嚴重高血糖'; cls = 'danger';
+    advice = '空腹血糖達糖尿病診斷標準，請評估 HbA1c 並依指引調整藥物（OHA 或胰島素）。';
+  } else if (glucose >= 126) {
+    level = '糖尿病範圍'; cls = 'danger';
+    advice = '空腹血糖達糖尿病診斷標準，建議安排複查 HbA1c，並由醫師評估治療計畫。';
+  } else if (glucose >= 100) {
+    level = '空腹血糖偏高'; cls = 'warn';
+    advice = '為糖尿病前期警戒範圍，應減少精緻澱粉，增加蔬菜與纖維攝取，並定期追蹤。';
+  } else {
+    level = '正常'; cls = 'good';
+    advice = '血糖數值在正常範圍，請維持均衡飲食與適量運動。';
+  }
+
+  el.innerHTML = `
+    <div class="decision ${cls}" style="margin-bottom:16px;">
+      <div class="decision-level">血糖評估</div>
+      <div class="decision-title">${level}</div>
+      <div class="decision-value">空腹血糖：${glucose} mg/dL（正常 &lt; 100）</div>
+      <div class="decision-body">${advice}</div>
+    </div>`;
+}
+
+/* ── 生活建議 ── */
+function renderDiet(vitals) {
+  const waterL = vitals.weight ? (vitals.weight * 35 / 1000).toFixed(1) : '2.0';
+  const items = [
+    { icon: '💧', text: `每日建議飲水量 <b>${waterL} 公升</b>（以體重換算）` },
+    { icon: '🐟', text: '補充富含 Omega-3 的深海魚類（鯖魚、鮭魚），有助改善脂質代謝' },
+    { icon: '🥬', text: '每日攝取足量蔬菜（≥ 3 份），選擇全穀類取代精緻澱粉' },
+    { icon: '🚶', text: '每週 ≥ 5 次、每次 ≥ 30 分鐘有氧運動（快走、游泳、騎車）' },
+    { icon: '🧂', text: '低鈉飲食（< 5 g/天），避免加工食品與外食過量鹽分' },
+  ];
+
+  if (vitals.tg != null && vitals.tg >= 150) {
+    items.splice(1, 0, { icon: '🍺', text: '嚴格限制酒精、含糖飲料、甜食；這些是 TG 飆升的主因' });
+  }
+
+  document.getElementById('dietList').innerHTML = items
+    .map(i => `<li><span class="diet-icon">${i.icon}</span><span>${i.text}</span></li>`)
+    .join('');
+}
+
+/* ── 血壓趨勢圖 ── */
+function renderBpChart(entries) {
+  if (!entries || entries.length < 2) return;
+
+  const bpEntries = entries
+    .filter(e => e.resource.code?.coding?.[0]?.code === LOINC.BP && e.resource.component)
+    .slice(0, 10)
+    .reverse();
+
+  if (bpEntries.length < 2) return;
+
+  const labels = bpEntries.map(e => {
+    const d = new Date(e.resource.effectiveDateTime || e.resource.issued || '');
+    return isNaN(d) ? '—' : `${d.getMonth()+1}/${d.getDate()}`;
+  });
+  const sbpData = bpEntries.map(e => {
+    const s = e.resource.component.find(x => x.code?.coding?.[0]?.code?.includes('8480-6'));
+    return s ? s.valueQuantity.value : null;
+  });
+  const dbpData = bpEntries.map(e => {
+    const d = e.resource.component.find(x => x.code?.coding?.[0]?.code?.includes('8462-4'));
+    return d ? d.valueQuantity.value : null;
+  });
+
+  document.getElementById('chartCard').style.display = 'block';
+  new Chart(document.getElementById('bpChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '收縮壓 SBP',
+          data: sbpData,
+          borderColor: '#e04438',
+          backgroundColor: 'rgba(224,68,56,0.08)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: '舒張壓 DBP',
+          data: dbpData,
+          borderColor: '#1a5ca8',
+          backgroundColor: 'rgba(26,92,168,0.06)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: "'Noto Sans TC'", size: 11 }, boxWidth: 14, padding: 10 } },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        y: { min: 50, max: 200, ticks: { font: { size: 10 } }, grid: { color: '#e8ecf2' } },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+/* ── 指標顏色標記 ── */
+function colorMetric(id, value, thresholds) {
+  // thresholds: [warnLow, warnHigh, dangerHigh]
+  const el = document.getElementById(id)?.closest('.metric-item');
+  if (!el || value == null) return;
+  const [wL, wH, dH] = thresholds;
+  el.classList.remove('warn', 'danger', 'good');
+  if (value >= dH) el.classList.add('danger');
+  else if (value >= wH || value <= wL) el.classList.add('warn');
+  else el.classList.add('good');
+}
+
+/* ── 主流程 ── */
+async function init() {
+  try {
+    const smart = await FHIR.oauth2.ready();
+    const pid = smart.patient.id;
+
+    const allLoinc = Object.values(LOINC).filter(v => v.length > 3).join(',');
+
+    const [patient, obs, conditions, meds] = await Promise.all([
+      smart.request(`Patient/${pid}`),
+      smart.request(`Observation?patient=${pid}&code=${allLoinc}&_sort=-date&_count=30`),
+      smart.request(`Condition?patient=${pid}`),
+      smart.request(`MedicationRequest?patient=${pid}&status=active`),
+    ]);
+
+    /* 1 ── 病人基本資料 */
+    const nameObj = patient.name?.[0];
+    const name = nameObj?.text || [nameObj?.family, ...(nameObj?.given || [])].filter(Boolean).join(' ') || '姓名未登錄';
+    const gender = patient.gender === 'male' ? '男性' : patient.gender === 'female' ? '女性' : '未知';
+    const age = patient.birthDate
+      ? Math.floor((Date.now() - new Date(patient.birthDate)) / 31557600000)
+      : '--';
+
+    document.getElementById('pName').textContent = name;
+    document.getElementById('pMeta').textContent =
+      `${gender} ・ ${age} 歲 ・ 出生：${patient.birthDate || '未登錄'} ・ ID：${patient.id}`;
+    document.getElementById('lastUpdated').textContent =
+      `最後更新：${new Date().toLocaleString('zh-TW', { hour12: false })}`;
+
+    /* 2 ── 生理數據 */
+    const vitals = { tg: null, glucose: null, sbp: null, dbp: null, weight: null };
+
+    if (obs.entry) {
+      obs.entry.forEach(e => {
+        const res = e.resource;
+        const code = res.code?.coding?.[0]?.code;
+        if (code === LOINC.TG     && vitals.tg      == null) vitals.tg      = res.valueQuantity?.value ?? null;
+        if (code === LOINC.GLUCOSE && vitals.glucose == null) vitals.glucose = res.valueQuantity?.value ?? null;
+        if (code === LOINC.WEIGHT  && vitals.weight  == null) vitals.weight  = Math.round(res.valueQuantity?.value ?? 0) || null;
+        if (code === LOINC.BP      && vitals.sbp     == null && res.component) {
+          const s = res.component.find(x => x.code?.coding?.[0]?.code?.includes('8480-6'));
+          const d = res.component.find(x => x.code?.coding?.[0]?.code?.includes('8462-4'));
+          if (s && d) {
+            vitals.sbp = s.valueQuantity.value;
+            vitals.dbp = d.valueQuantity.value;
           }
-          tgArea.innerHTML = `
-            <div class="decision ${statusClass}">
-              <div style="font-size: 20px; font-weight: 800;">TG 評估：${riskLabel}</div>
-              <div style="font-size: 14px; margin-top: 5px; opacity: 0.9;">最新量測值: ${vitals.tg} mg/dL</div>
-              <div style="margin-top: 10px; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">${advice}</div>
-            </div>`;
-        } else {
-          tgArea.innerHTML = `<div class="decision status-info">等待 TG 數據傳輸...</div>`;
         }
-
-        // 5. 生活建議與飲水 (單位 L)
-        let waterL = vitals.weight ? (vitals.weight * 35 / 1000).toFixed(1) : "2.0";
-        let dietHtml = `<ul style="list-style-type: none;">`;
-        dietHtml += `<li>💧 <b>每日建議飲水量：</b> 需達到 <b>${waterL} L</b> (公升)。</li>`;
-        if (vitals.tg > 150) dietHtml += `<li>🍺 <b>飲食提醒：</b> 酒精、甜食、含糖飲料是升高 TG 的主因，應嚴格限制。</li>`;
-        dietHtml += `<li>🐟 <b>油脂建議：</b> 建議補充富含 Omega-3 的深海魚類，幫助改善脂質代謝。</li>`;
-        dietHtml += `<li>🚶 <b>運動建議：</b> 每週 5 次 30 分鐘有氧運動，可顯著降低三酸甘油脂。</li>`;
-        dietHtml += `</ul>`;
-        document.getElementById("dietBody").innerHTML = dietHtml;
-
-      } catch (e) {
-        console.error("FHIR Error:", e);
-      }
+      });
     }
-    init();
-  </script>
+
+    // 格式化：最多顯示小數點後兩位，去除尾零
+    function fmt(v) {
+      if (v == null) return '—';
+      const n = parseFloat(v);
+      if (isNaN(n)) return '—';
+      // 若為整數則不顯示小數；否則最多兩位並去尾零
+      return Number.isInteger(n) ? String(n) : parseFloat(n.toFixed(2)).toString();
+    }
+
+    document.getElementById('vTg').textContent      = fmt(vitals.tg);
+    document.getElementById('vGlucose').textContent = fmt(vitals.glucose);
+    document.getElementById('vBP').textContent      = vitals.sbp != null
+      ? `${fmt(vitals.sbp)}/${fmt(vitals.dbp)}`
+      : '—';
+    document.getElementById('vWeight').textContent  = vitals.weight ?? '—';
+
+    // 顏色標記
+    colorMetric('vTg',      vitals.tg,      [0, 150, 200]);
+    colorMetric('vGlucose', vitals.glucose, [0, 100, 126]);
+    colorMetric('vWeight',  null, []);  // 體重不做風險標記
+
+    /* 3 ── 診斷清單 */
+    const dList = document.getElementById('diagList');
+    if (conditions.entry?.length) {
+      dList.innerHTML = conditions.entry
+        .map(e => {
+          const text = e.resource.code?.text || e.resource.code?.coding?.[0]?.display || '診斷未知';
+          return `<li><span>${text}</span></li>`;
+        }).join('');
+    } else {
+      dList.innerHTML = '<li><span class="empty-hint">查無診斷紀錄</span></li>';
+    }
+
+    /* 4 ── 用藥清單 */
+    const mList = document.getElementById('medList');
+    if (meds.entry?.length) {
+      mList.innerHTML = meds.entry
+        .map(e => {
+          const name = e.resource.medicationCodeableConcept?.text
+            || e.resource.medicationCodeableConcept?.coding?.[0]?.display
+            || '藥名未登錄';
+          return `<li><span>💊 ${name}</span></li>`;
+        }).join('');
+    } else {
+      mList.innerHTML = '<li><span class="empty-hint">目前無服用藥物</span></li>';
+    }
+
+    /* 5 ── CDSS 決策 */
+    renderTgDecision(vitals.tg);
+    renderBpDecision(vitals.sbp, vitals.dbp);
+    renderGlucoseDecision(vitals.glucose);
+
+    /* 6 ── 飲食建議 */
+    renderDiet(vitals);
+
+    /* 7 ── 血壓趨勢圖 */
+    renderBpChart(obs.entry);
+
+    hideLoading();
+
+  } catch (err) {
+    console.error('FHIR Error:', err);
+    showError(err?.message || '未知錯誤。若在本地測試，請先透過 launch.html 啟動 OAuth2 流程。');
+  }
+}
+
+init();
+</script>
 </body>
 </html>
